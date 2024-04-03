@@ -1,0 +1,2 @@
+# id	length	x	y	z	rot_z	rot_y	rot_x
+0	0.22	-0.147	-0.147	0	0	0   0
