@@ -29,40 +29,73 @@ class Drone():
         self.lock = threading.Lock()
         self.path = None
         self.frame_id = None
-        self.speed = 1
-        self.tolerance = 0.1
+        self.speed = .5
+        self.tolerance = 0.3
+        self.rate = rospy.Rate(15)
 
     def set_range(self, rng):
         self.rng = rng
 
     def follow_path(self):
-        with self.lock:
-            for pt in self.path:
-                rospy.sleep(1)
-                t = pt.header.seq
-                pose = pt.pose.position
-                print(t, pose)
+        prev_t = 0
+        start_t = rospy.get_time()
+        for pt in self.path:
+            t = pt.header.seq
+            telem = get_telemetry(frame_id='map')
 
-                # navigate(x=pose.x, y=pose.y, z=pose.z, speed=self.speed, frame_id=self.frame_id)
-                set_position(x=pose.x, y=pose.y, z=pose.z, frame_id=self.frame_id)
+            # true navigation point
+            abs_x = pt.pose.position.x
+            abs_y = pt.pose.position.y
+            abs_z = pt.pose.position.z
 
-                while not rospy.is_shutdown():
-                    telem = get_telemetry(frame_id='navigate_target')
-                    if math.sqrt(telem.x ** 2 + telem.y ** 2 + telem.z ** 2) < self.tolerance:
-                        break
-                    rospy.sleep(0.01)
+            # projected navigation point
+            proj_x = abs_x + (abs_x - telem.x) * 2
+            proj_y = ((abs_y - telem.y) / (abs_x - telem.x)) * (proj_x - telem.x) + telem.y
 
-            self.path = None
-            self.frame_id = None
+            # speed
+            dist = math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2)
+            self.speed = dist / ((t - prev_t) / 1000)
+            
+            print(f't: {t}\nv: {self.speed}\npose:{(abs_x, abs_y)}')
+            # print(f"Locl x: {telem.x:.4f}\tReal x: {abs_x:.4f}\t Proj x:{proj_x:.4f}")
+            # print(f"Locl y: {telem.y:.4f}\tReal y: {abs_y:.4f}\t Proj y:{proj_y:.4f}")
+
+            # navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
+            # set_position(x=pose.position.x, y=pose.position.y, z=pose.position.z, frame_id=self.frame_id)
+
+            
+            while not rospy.is_shutdown():
+                navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
+                telem = get_telemetry(frame_id='map')
+
+                # reached our goal
+                if math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2) < self.tolerance:
+                    print(f"T actual: {rospy.get_time() - start_t}\n")
+                    break
+                # need to keep navigating so update proj_x and proj_y
+                else:
+                    proj_x = abs_x + (abs_x - telem.x) * 2
+                    proj_y = ((abs_y - telem.y) / (abs_x - telem.x)) * (proj_x - telem.x) + telem.y
+
+                    # print(f"Locl x: {telem.x:.4f}\tReal x: {abs_x:.4f}\t Proj x:{proj_x:.4f}")
+                    # print(f"Locl y: {telem.y:.4f}\tReal y: {abs_y:.4f}\t Proj y:{proj_y:.4f}")
+
+                rospy.sleep(.1)
+            
+            prev_t = t
+
+        self.path = None
+        self.frame_id = None
 
     def takeoff(self, height):
         print("Takeoff.. wait for ready")
-        navigate(x=0, y=0, z=height.data, frame_id='body', auto_arm=True)
+        navigate(x=0, y=0, z=height.data, frame_id='map', auto_arm=True)
         rospy.sleep(10)
         print('Ready')
 
 
 def callback_path(path, drone):
+    print("Got path")
     if drone.path == None:
         drone.path = path.poses
         drone.frame_id = path.header.frame_id
@@ -70,6 +103,7 @@ def callback_path(path, drone):
         drone.follow_path()
 
     else:
+        print("Already Running")
         pass
 
     
