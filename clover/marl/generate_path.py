@@ -9,12 +9,12 @@ import math
 rospy.init_node('send_path', anonymous=True)
 pub = rospy.Publisher('waypoints', Path, queue_size=10)
 
-while pub.get_num_connections() < 1:
+while pub.get_num_connections() < 2:
     rospy.sleep(.1)
 
-radius = 1
-num_points = 20
-completion_time = 5000
+radius = 2
+num_points = 60
+completion_time = 30000
 time_step = completion_time / num_points
 
 msg_head = Header(stamp=rospy.Time.now(), frame_id="map")
@@ -34,9 +34,18 @@ for i in range(num_points):
 
     poses.append(PoseStamped(header=header, pose=pose))
 
+# # generate test message
+# header = Header(seq=int(5000))
+# pose = Pose(position=Point(x=1, y=1, z=1))
+# poses.append(PoseStamped(header=header, pose=pose))
+
+# header = Header(seq=int(10000))
+# pose = Pose(position=Point(x=0, y=0, z=1))
+# poses.append(PoseStamped(header=header, pose=pose))
+
+
 header = Header(seq=int(time_step * (num_points+1)))
 pose = Pose(position=Point(x=0, y=0, z=z))
-
 poses.append(PoseStamped(header=header, pose=pose))
 
 path = Path(header=msg_head, poses=poses)
