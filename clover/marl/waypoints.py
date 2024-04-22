@@ -7,6 +7,11 @@ from std_srvs.srv import Trigger
 from nav_msgs.msg import Path
 from sensor_msgs.msg import Range
 from std_msgs.msg import Int32
+from geometry_msgs.msg import Point, Pose, PoseStamped, Quaternion
+from std_msgs.msg import Header
+from visualization_msgs.msg import Marker
+import tf
+
 import math
 
 # Initialize Clover Services
@@ -18,6 +23,7 @@ set_velocity = rospy.ServiceProxy('set_velocity', srv.SetVelocity)
 # set_attitude = rospy.ServiceProxy('set_attitude', srv.SetAttitude)
 # set_rates = rospy.ServiceProxy('set_rates', srv.SetRates)
 land = rospy.ServiceProxy('land', Trigger)
+head = Header(frame_id='map')
 
 class Drone():
     def __init__(self, name):
@@ -29,6 +35,8 @@ class Drone():
         self.frame_id = None
         self.speed = 0
         self.tolerance = 0.3
+        self.pub = None
+
 
     def follow_path(self):
         prev_t = 0
@@ -41,37 +49,46 @@ class Drone():
         for pt in self.path:
             t = pt.header.seq
 
-            # true navigation point
+            # goal position
             abs_x = pt.pose.position.x
             abs_y = pt.pose.position.y
             abs_z = pt.pose.position.z
-
+            linept = (prev_x + (abs_x - prev_x) / 2, prev_y + (abs_y - prev_y) / 2)  # this is the point on the path we want to navigate though, at the end this should equal abs_x, abs_y
+            
             # speed
             dist = math.sqrt((prev_x - abs_x)**2 + (prev_y - abs_y)**2)
             self.speed = dist / ((t - prev_t) / 1000)
 
-            # projected navigation point
+            # lookahead point
             telem = get_telemetry(frame_id='map')
-            proj_x = abs_x + math.copysign(min(.1, (abs_x - telem.x)* 2), abs_x - telem.x)
-            if abs_x - telem.x == 0:
-                proj_y = proj_y * 1.2
-            else:
-                proj_y = ((abs_y - telem.y) / (abs_x - telem.x)) * (proj_x - telem.x) + telem.y
+            dist_num = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y))  # from wikipedia distance from point to line
+            p_error = dist_num / dist  # orthogonal distance from drone to real path
+            proj_x = linept[0] + (linept[0] - telem.x) * 2
+            proj_y = linept[1] + (linept[1] - telem.y) * 2
+            self.publish_proj(telem, proj_x, proj_y, abs_z)
             
-            # loop til in tolerance of goal updating navigation projection as we go
+            # loop til in tolerance of goal updating lookahead point as we go
             while not rospy.is_shutdown():
+                print(p_error)
                 navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
                 telem = get_telemetry(frame_id='map')
 
                 # reached our goal
                 if math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2) < self.tolerance:
-                    # print(f"T actual: {rospy.get_time() - start_t}\n")
                     break
                 # update proj_x and proj_y
                 else:
-                    proj_x = abs_x + math.copysign(min(.1, (abs_x - telem.x)* 2), abs_x - telem.x)
-                    proj_y = ((abs_y - telem.y) / (abs_x - telem.x)) * (proj_x - telem.x) + telem.y
+                    dist_num = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y))  # from wikipedia distance from point to line
+                    if dist_num / dist < p_error: 
+                        # push linept closer to abs_x, abs_y as p_error decreases
+                        p_error = dist_num / dist
+                        linept = (prev_x + (abs_x - prev_x) / (1 + (p_error)**2), prev_y + (abs_y - prev_y) / (1 + (p_error)**2))
+                    if p_error < 0.1:
+                        linept = abs_x, abs_y
+                    proj_x = linept[0] + (linept[0] - telem.x) * 2
+                    proj_y = linept[1] + (linept[1] - telem.y) * 2
 
+                self.publish_proj(telem, proj_x, proj_y, abs_z)
                 rospy.sleep(.01)
             
             # track necessary previous values for next trajectory point
@@ -87,6 +104,35 @@ class Drone():
         # reset class variables
         self.path = None
         self.frame_id = None
+
+
+    def publish_proj(self, telem, x, y, z):
+        yaw = math.atan2(y - telem.y, x - telem.x)
+        orientation = Quaternion(*tf.transformations.quaternion_from_euler(0, 0, yaw))
+
+
+        marker = Marker()
+        marker.header.frame_id = "map"
+        marker.type = 0
+        marker.id = 0
+        marker.scale.x = math.sqrt((x - telem.x)**2 + (y - telem.y)**2)
+        marker.scale.y = 0.03
+        marker.scale.z = 0.03
+
+        # Set the color
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        # Set the pose of the marker
+        marker.pose.position.x = telem.x
+        marker.pose.position.y = telem.y
+        marker.pose.position.z = z
+        marker.pose.orientation = Quaternion(*tf.transformations.quaternion_from_euler(0, 0, yaw))
+
+        self.pub.publish(marker)
+
 
     def takeoff(self, height):
         print("Takeoff.. wait for ready")
@@ -146,6 +192,10 @@ def flight():
     rospy.Subscriber("waypoints", Path, callback_path, callback_args=clover, queue_size=1)
     rospy.Subscriber("takeoff", Int32, clover.takeoff, queue_size=1)
     # rospy.Subscriber("rangefinder/range", Range, callback_range, callback_args=clover, queue_size=1)
+
+    # publisher
+    pub = rospy.Publisher("carrot", Marker, queue_size=10)
+    clover.pub = pub
 
     # land on shutdown
     rospy.on_shutdown(call_land)
