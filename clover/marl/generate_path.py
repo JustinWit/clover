@@ -13,7 +13,7 @@ while pub.get_num_connections() < 2:
     rospy.sleep(.1)
 
 radius = 2
-num_points = 60
+num_points = 8
 completion_time = 30000
 time_step = completion_time / num_points
 

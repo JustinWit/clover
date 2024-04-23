@@ -53,41 +53,41 @@ class Drone():
             abs_x = pt.pose.position.x
             abs_y = pt.pose.position.y
             abs_z = pt.pose.position.z
-            linept = (prev_x + (abs_x - prev_x) / 2, prev_y + (abs_y - prev_y) / 2)  # this is the point on the path we want to navigate though, at the end this should equal abs_x, abs_y
             
             # speed
             dist = math.sqrt((prev_x - abs_x)**2 + (prev_y - abs_y)**2)
             self.speed = dist / ((t - prev_t) / 1000)
 
-            # lookahead point
-            telem = get_telemetry(frame_id='map')
-            dist_num = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y))  # from wikipedia distance from point to line
-            p_error = dist_num / dist  # orthogonal distance from drone to real path
-            proj_x = linept[0] + (linept[0] - telem.x) * 2
-            proj_y = linept[1] + (linept[1] - telem.y) * 2
-            self.publish_proj(telem, proj_x, proj_y, abs_z)
+            # lookahead distances
+            c_dist = dist / 4  # fix the distance we are going to navigate to
+            proj_dist = c_dist * 2  # fix how far we are projecting that point
             
             # loop til in tolerance of goal updating lookahead point as we go
             while not rospy.is_shutdown():
-                print(p_error)
-                navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
                 telem = get_telemetry(frame_id='map')
+                dist = math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2)
 
                 # reached our goal
-                if math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2) < self.tolerance:
+                if dist < self.tolerance:
                     break
                 # update proj_x and proj_y
                 else:
-                    dist_num = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y))  # from wikipedia distance from point to line
-                    if dist_num / dist < p_error: 
-                        # push linept closer to abs_x, abs_y as p_error decreases
-                        p_error = dist_num / dist
-                        linept = (prev_x + (abs_x - prev_x) / (1 + (p_error)**2), prev_y + (abs_y - prev_y) / (1 + (p_error)**2))
-                    if p_error < 0.1:
-                        linept = abs_x, abs_y
-                    proj_x = linept[0] + (linept[0] - telem.x) * 2
-                    proj_y = linept[1] + (linept[1] - telem.y) * 2
+                    # dist_num = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y))  # from wikipedia distance from point to line
+                    # p_error = dist_num / dist  # orthogonal distance from drone to real path
+                    # dist_p = math.sqrt((telem.x - prev_x)**2 + (telem.y - prev_y)**2)  # drone distance from start point
 
+
+                    # dist_line = math.sqrt(abs(dist_p**2 - p_error**2)) + math.sqrt(abs(c_dist**2 - p_error**2))
+
+                    linept = abs_x, abs_y
+
+                    proj_x = telem.x + ((dist + proj_dist) / dist) * (linept[0] - telem.x)
+                    proj_y = telem.y + ((dist + proj_dist) / dist) * (linept[1] - telem.y)
+
+                    self.publish_proj(telem, proj_x, proj_y, abs_z)
+                
+
+                navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
                 self.publish_proj(telem, proj_x, proj_y, abs_z)
                 rospy.sleep(.01)
             
