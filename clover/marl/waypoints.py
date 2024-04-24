@@ -55,57 +55,20 @@ class Drone():
             # speed
             dist = math.sqrt((prev_x - abs_x)**2 + (prev_y - abs_y)**2)
             self.speed = dist / ((t - prev_t) / 1000)
-
-            # lookahead distances
-            c_dist = dist / 4  # fix the distance we are going to navigate to
-            proj_dist = c_dist * 2  # fix how far we are projecting that point
             
+            # navigate 
+            navigate(x=abs_x, y=abs_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
+
             # loop til in tolerance of goal updating lookahead point as we go
             while not rospy.is_shutdown():
-                telem = get_telemetry(frame_id='map')
-                dist = math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2)
-
+                telem = get_telemetry(frame_id="map")
+                dist_err = math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2)
                 # reached our goal
-                if dist < self.tolerance:
-                    break
-                # update proj_x and proj_y
-                else:
-<<<<<<< Updated upstream
-                    # dist_num = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y))  # from wikipedia distance from point to line
-                    # p_error = dist_num / dist  # orthogonal distance from drone to real path
-                    # dist_p = math.sqrt((telem.x - prev_x)**2 + (telem.y - prev_y)**2)  # drone distance from start point
-=======
-                    path_error = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y)) / nav_dist  # from wikipedia distance from point to line
-                    carrot_dist = nav_dist/3  # adjust for when path_error is higher than our carrot distance
-                    if path_error / nav_dist > 1/3:
-                        carrot_dist = path_error + nav_dist/10
->>>>>>> Stashed changes
-
-
-<<<<<<< Updated upstream
-                    # dist_line = math.sqrt(abs(dist_p**2 - p_error**2)) + math.sqrt(abs(c_dist**2 - p_error**2))
-
-                    linept = abs_x, abs_y
-=======
-                    cx = prev_x + (linept_dist / nav_dist) * (abs_x - prev_x)
-                    cy = prev_y + (linept_dist / nav_dist) * (abs_y - prev_y)
-
-                    # once we are close enough to the next point just naviagte there
-                    if math.sqrt((cx - abs_x)**2 + (cy - abs_y)**2) <= self.tolerance:
-                        linept = (abs_x, abs_y)
-                    else:
-                        linept = cx, cy
-
-                    # projection distance
-                    proj_dist = nav_dist/3   # low path_error can be projected further
->>>>>>> Stashed changes
-
-                    proj_x = telem.x + ((dist + proj_dist) / dist) * (linept[0] - telem.x)
-                    proj_y = telem.y + ((dist + proj_dist) / dist) * (linept[1] - telem.y)                
+                if dist_err < self.tolerance:
+                    break             
 
                 # call clover navigate with out projection points
-                navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
-                self.publish_proj(telem, proj_x, proj_y, abs_z)  #rviz display of projection points
+                self.publish_proj(telem, abs_x, abs_y, abs_z)  #rviz display of projection points
                 rospy.sleep(.01)
             
             # track necessary previous values for next trajectory point
