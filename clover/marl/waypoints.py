@@ -17,11 +17,8 @@ import math
 # Initialize Clover Services
 get_telemetry = rospy.ServiceProxy('get_telemetry', srv.GetTelemetry)
 navigate = rospy.ServiceProxy('navigate', srv.Navigate)
-# navigate_global = rospy.ServiceProxy('navigate_global', srv.NavigateGlobal)
 set_position = rospy.ServiceProxy('set_position', srv.SetPosition)
 set_velocity = rospy.ServiceProxy('set_velocity', srv.SetVelocity)
-# set_attitude = rospy.ServiceProxy('set_attitude', srv.SetAttitude)
-# set_rates = rospy.ServiceProxy('set_rates', srv.SetRates)
 land = rospy.ServiceProxy('land', Trigger)
 head = Header(frame_id='map')
 
@@ -47,6 +44,7 @@ class Drone():
         prev_y = telem.y
 
         for pt in self.path:
+            # time step
             t = pt.header.seq
 
             # goal position
@@ -72,23 +70,42 @@ class Drone():
                     break
                 # update proj_x and proj_y
                 else:
+<<<<<<< Updated upstream
                     # dist_num = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y))  # from wikipedia distance from point to line
                     # p_error = dist_num / dist  # orthogonal distance from drone to real path
                     # dist_p = math.sqrt((telem.x - prev_x)**2 + (telem.y - prev_y)**2)  # drone distance from start point
+=======
+                    path_error = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y)) / nav_dist  # from wikipedia distance from point to line
+                    carrot_dist = nav_dist/3  # adjust for when path_error is higher than our carrot distance
+                    if path_error / nav_dist > 1/3:
+                        carrot_dist = path_error + nav_dist/10
+>>>>>>> Stashed changes
 
 
+<<<<<<< Updated upstream
                     # dist_line = math.sqrt(abs(dist_p**2 - p_error**2)) + math.sqrt(abs(c_dist**2 - p_error**2))
 
                     linept = abs_x, abs_y
+=======
+                    cx = prev_x + (linept_dist / nav_dist) * (abs_x - prev_x)
+                    cy = prev_y + (linept_dist / nav_dist) * (abs_y - prev_y)
+
+                    # once we are close enough to the next point just naviagte there
+                    if math.sqrt((cx - abs_x)**2 + (cy - abs_y)**2) <= self.tolerance:
+                        linept = (abs_x, abs_y)
+                    else:
+                        linept = cx, cy
+
+                    # projection distance
+                    proj_dist = nav_dist/3   # low path_error can be projected further
+>>>>>>> Stashed changes
 
                     proj_x = telem.x + ((dist + proj_dist) / dist) * (linept[0] - telem.x)
-                    proj_y = telem.y + ((dist + proj_dist) / dist) * (linept[1] - telem.y)
+                    proj_y = telem.y + ((dist + proj_dist) / dist) * (linept[1] - telem.y)                
 
-                    self.publish_proj(telem, proj_x, proj_y, abs_z)
-                
-
+                # call clover navigate with out projection points
                 navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
-                self.publish_proj(telem, proj_x, proj_y, abs_z)
+                self.publish_proj(telem, proj_x, proj_y, abs_z)  #rviz display of projection points
                 rospy.sleep(.01)
             
             # track necessary previous values for next trajectory point
@@ -135,6 +152,7 @@ class Drone():
 
 
     def takeoff(self, height):
+        input('Press <ENTER> to take off')
         print("Takeoff.. wait for ready")
         # takeoff
         navigate(x=0, y=0, z=height.data, frame_id='body', auto_arm=True)
@@ -178,12 +196,6 @@ def call_land():
     land()
 
 
-def timeout():
-    # hold current position if not receiving coordinates
-    set_velocity(vx=0, vy=0, vz=0, frame_id='body')
-    rospy.loginfo(f"Lost communication")
-
-
 def flight():
     # initialize drone
     clover = Drone('clover')
@@ -191,9 +203,8 @@ def flight():
     # Subscribers
     rospy.Subscriber("waypoints", Path, callback_path, callback_args=clover, queue_size=1)
     rospy.Subscriber("takeoff", Int32, clover.takeoff, queue_size=1)
-    # rospy.Subscriber("rangefinder/range", Range, callback_range, callback_args=clover, queue_size=1)
 
-    # publisher
+    # publisher for rviz
     pub = rospy.Publisher("carrot", Marker, queue_size=10)
     clover.pub = pub
 

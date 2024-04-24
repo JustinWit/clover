@@ -12,9 +12,15 @@ pub = rospy.Publisher('waypoints', Path, queue_size=10)
 while pub.get_num_connections() < 2:
     rospy.sleep(.1)
 
+<<<<<<< Updated upstream
 radius = 2
 num_points = 8
 completion_time = 30000
+=======
+radius = 5
+num_points = 4
+completion_time = 5000
+>>>>>>> Stashed changes
 time_step = completion_time / num_points
 
 msg_head = Header(stamp=rospy.Time.now(), frame_id="map")
