@@ -69,7 +69,8 @@ class Drone():
                 # update proj_x and proj_y
                 else:
                     path_error = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y)) / nav_dist  # from wikipedia distance from point to line
-                    carrot_dist = max(nav_dist/3, path_error + nav_dist/5)  # adjust for when path_error is higher than our carrot distance
+                    
+                    carrot_dist = max(dist * (dist / (dist + (path_error*2))), path_error)
 
                     # set this to points on the line based on how far from the true navigation line we are
                     # we have to ensure this point is infront of where we are navigating
@@ -84,7 +85,7 @@ class Drone():
                         linept = cx, cy
 
                     # projection distance
-                    proj_dist = carrot_dist   # low path_error can be projected further
+                    proj_dist = self.speed * (dist / (dist + (path_error*2))) * .5
 
                     # projection with similar triangles
                     proj_x = telem.x + ((dist + proj_dist) / dist) * (linept[0] - telem.x)
@@ -141,6 +142,7 @@ class Drone():
 
 
     def takeoff(self, height):
+        input("Press <ENTER> for takeoff ")
         print("Takeoff.. wait for ready")
         # takeoff
         navigate(x=0, y=0, z=height.data, frame_id='body', auto_arm=True)
