@@ -70,35 +70,14 @@ class Drone():
                     break
                 # update proj_x and proj_y
                 else:
-<<<<<<< Updated upstream
                     # dist_num = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y))  # from wikipedia distance from point to line
                     # p_error = dist_num / dist  # orthogonal distance from drone to real path
                     # dist_p = math.sqrt((telem.x - prev_x)**2 + (telem.y - prev_y)**2)  # drone distance from start point
-=======
-                    path_error = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y)) / nav_dist  # from wikipedia distance from point to line
-                    carrot_dist = nav_dist/3  # adjust for when path_error is higher than our carrot distance
-                    if path_error / nav_dist > 1/3:
-                        carrot_dist = path_error + nav_dist/10
->>>>>>> Stashed changes
 
 
-<<<<<<< Updated upstream
                     # dist_line = math.sqrt(abs(dist_p**2 - p_error**2)) + math.sqrt(abs(c_dist**2 - p_error**2))
 
                     linept = abs_x, abs_y
-=======
-                    cx = prev_x + (linept_dist / nav_dist) * (abs_x - prev_x)
-                    cy = prev_y + (linept_dist / nav_dist) * (abs_y - prev_y)
-
-                    # once we are close enough to the next point just naviagte there
-                    if math.sqrt((cx - abs_x)**2 + (cy - abs_y)**2) <= self.tolerance:
-                        linept = (abs_x, abs_y)
-                    else:
-                        linept = cx, cy
-
-                    # projection distance
-                    proj_dist = nav_dist/3   # low path_error can be projected further
->>>>>>> Stashed changes
 
                     proj_x = telem.x + ((dist + proj_dist) / dist) * (linept[0] - telem.x)
                     proj_y = telem.y + ((dist + proj_dist) / dist) * (linept[1] - telem.y)                
