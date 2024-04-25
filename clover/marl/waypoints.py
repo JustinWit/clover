@@ -17,11 +17,8 @@ import math
 # Initialize Clover Services
 get_telemetry = rospy.ServiceProxy('get_telemetry', srv.GetTelemetry)
 navigate = rospy.ServiceProxy('navigate', srv.Navigate)
-# navigate_global = rospy.ServiceProxy('navigate_global', srv.NavigateGlobal)
 set_position = rospy.ServiceProxy('set_position', srv.SetPosition)
 set_velocity = rospy.ServiceProxy('set_velocity', srv.SetVelocity)
-# set_attitude = rospy.ServiceProxy('set_attitude', srv.SetAttitude)
-# set_rates = rospy.ServiceProxy('set_rates', srv.SetRates)
 land = rospy.ServiceProxy('land', Trigger)
 head = Header(frame_id='map')
 
@@ -47,6 +44,7 @@ class Drone():
         prev_y = telem.y
 
         for pt in self.path:
+            # time step
             t = pt.header.seq
 
             # goal position
@@ -94,8 +92,9 @@ class Drone():
                     self.publish_proj(telem, proj_x, proj_y, abs_z)
                 
 
+                # call clover navigate with out projection points
                 navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
-                self.publish_proj(telem, proj_x, proj_y, abs_z)
+                self.publish_proj(telem, proj_x, proj_y, abs_z)  #rviz display of projection points
                 rospy.sleep(.01)
             
             # track necessary previous values for next trajectory point
@@ -186,12 +185,6 @@ def call_land():
     land()
 
 
-def timeout():
-    # hold current position if not receiving coordinates
-    set_velocity(vx=0, vy=0, vz=0, frame_id='body')
-    rospy.loginfo(f"Lost communication")
-
-
 def flight():
     # initialize drone
     clover = Drone('clover')
@@ -199,9 +192,8 @@ def flight():
     # Subscribers
     rospy.Subscriber("waypoints", Path, callback_path, callback_args=clover, queue_size=1)
     rospy.Subscriber("takeoff", Int32, clover.takeoff, queue_size=1)
-    # rospy.Subscriber("rangefinder/range", Range, callback_range, callback_args=clover, queue_size=1)
 
-    # publisher
+    # publisher for rviz
     pub = rospy.Publisher("carrot", Marker, queue_size=10)
     clover.pub = pub
 
