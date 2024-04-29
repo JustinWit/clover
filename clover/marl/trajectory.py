@@ -6,10 +6,11 @@ from clover import srv
 from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Range
+from std_msgs.msg import Int32
 import math
 
 # Initialize Clover Services
-# get_telemetry = rospy.ServiceProxy('get_telemetry', srv.GetTelemetry)
+get_telemetry = rospy.ServiceProxy('get_telemetry', srv.GetTelemetry)
 navigate = rospy.ServiceProxy('navigate', srv.Navigate)
 # navigate_global = rospy.ServiceProxy('navigate_global', srv.NavigateGlobal)
 set_position = rospy.ServiceProxy('set_position', srv.SetPosition)
@@ -42,7 +43,7 @@ def callback_position(vector, args):
 
     # reset timer
     drone.timer.cancel()
-    drone.timer = threading.Timer(.2, timeout)
+    drone.timer = threading.Timer(.5, timeout)
 
     # extract message
     x, z = vector.linear.x, vector.angular.z
@@ -87,6 +88,21 @@ def timeout():
     rospy.loginfo(f"Lost communication")
 
 
+def takeoff(height):
+    input('Press <ENTER> to take off')
+    print("Takeoff.. wait for ready")
+    # takeoff
+    navigate(x=0, y=0, z=height.data, frame_id='body', auto_arm=True)
+    while not rospy.is_shutdown():
+        telem = get_telemetry(frame_id='map')
+
+        # reached our goal
+        if abs(telem.z - height.data) < 0.2:
+            break
+        rospy.sleep(0.2)
+    print('Ready')
+
+
 def flight():
     # initialize drone
     timer = threading.Timer(.5, timeout)
@@ -98,6 +114,7 @@ def flight():
     # Subscribers
     rospy.Subscriber("trajectory_stream", Twist, callback_position, callback_args=(clover, lock), queue_size=10)
     rospy.Subscriber("rangefinder/range", Range, callback_range, callback_args=(clover, lock), queue_size=1)
+    rospy.Subscriber("takeoff", Int32, takeoff, queue_size=1)
 
     # land on shutdown
     rospy.on_shutdown(call_land)

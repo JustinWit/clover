@@ -7,7 +7,7 @@ import math
 
 #SET THIS TO YOUR DEVICE
 device = InputDevice('/dev/input/event7')
-# print(device.capabilities(verbose=True))
+# print(device.capabilities(verbose=True))  # use this to view devices
 
 # ros publisher
 pub = rospy.Publisher('trajectory_stream', Twist, queue_size=1)

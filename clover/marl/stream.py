@@ -15,7 +15,7 @@ def stream():
     rospy.init_node('test_publisher', anonymous=True)
     rate = rospy.Rate(10)  # set publish rate to 10 Hz
 
-    speed, direction = 5, 0
+    speed, direction = 1, 0
     vect = Twist()
     while not rospy.is_shutdown():
         vect.linear.x = speed  # forward speed
@@ -50,8 +50,4 @@ def square():
 
 
 if __name__ == "__main__":
-    # takeoff to 2m
-    navigate(x=0, y=0, z=2, frame_id='body', auto_arm=True)
-    rospy.sleep(10)
-
     stream()
