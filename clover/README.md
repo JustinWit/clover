@@ -1,55 +1,29 @@
-# `clover` ROS package
+# Directions for Use
+All work was done in Ubuntu 20.04
 
-A bundle for autonomous navigation and drone control.
+## Simulator Setup for Local Testing
+Follow the [install directions](https://clover.coex.tech/en/simulation_native.html) from Clover. Rather than cloning the Clover package from clover use [this](https://github.com/JustinWit/clover/tree/master) GitHub link (First clone in the Clone Clover sources section). The additional steps section is not required. This will mimic the environment on the drone, so use cases for the simulator will be the same on the drone. You'll just have to copy any code changes over to the Pi on the drone.
 
-## Manual installation
-
-Install ROS Noetic according to the [documentation](http://wiki.ros.org/noetic/Installation), then [create a Catkin workspace](http://wiki.ros.org/catkin/Tutorials/create_a_workspace).
-
-Clone this repo to directory `~/catkin_ws/src/clover`:
-
-```bash
-cd ~/catkin_ws/src
-git clone https://github.com/CopterExpress/clover.git clover
+## Simulator Use
+Source ROS noetic and the setup.bash file for the work space. Launch the simulator according to the Clover Documentation
+```
+$ roslaunch clover simulator.launch 
 ```
 
-All the required ROS packages (including `mavros` and `opencv`) can be installed using `rosdep`:
+Refer to the README in the marl directory for directions for running code.
 
-```bash
-cd ~/catkin_ws/
-rosdep install -y --from-paths src --ignore-src
+## Drone Use
+Connect to the Pi on the drone through SSH. 
+
+```
+$ ssh pi@192.168.11.1
 ```
 
-Build ROS packages (on memory constrained platforms you might be going to need to use `-j1` key):
+The password is: raspberry
 
-```bash
-cd ~/catkin_ws
-catkin_make -j1
-```
+You should set-up [rsa key authentication](https://www.digitalocean.com/community/tutorials/how-to-configure-ssh-key-based-authentication-on-a-linux-server). 
 
-To complete `mavros` install you'll need to install `geographiclib` datasets:
+The `catkin_ws` contains the code for Clover. You should copy any of the work done on your computer to the respective directory on the Pi. 
 
-```bash
-curl https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh | sudo bash
-```
-
-You may optionally install udev rules to provide `/dev/px4fmu` symlink to your PX4-based flight controller connected over USB. Copy `99-px4fmu.rules` to your `/lib/udev/rules.d` folder:
-
-```bash
-cd ~/catkin_ws/src/clover/clover/udev
-sudo cp 99-px4fmu.rules /lib/udev/rules.d
-```
-
-Alternatively you may change the `fcu_url` property in `mavros.launch` file to point to your flight controller device.
-
-## Running
-
-To start connection to the flight controller, use:
-
-```bash
-roslaunch clover clover.launch
-```
-
-For the simulation information see the [corresponding article](https://clover.coex.tech/en/simulation.html).
-
-> Note that the package is configured to connect to `/dev/px4fmu` by default (see [previous section](#manual-installation)). Install udev rules or specify path to your FCU device in `mavros.launch`.
+## Connecting to QGround
+Launch QGround and go to application settings, comm links. Change the type to TCP and enter the drones IP address: 192.168.11.1, the port should be set to 5760. Enter a name and press OK. You should be able to click on the created link and press connect. 

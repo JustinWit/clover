@@ -20,7 +20,7 @@ navigate = rospy.ServiceProxy('navigate', srv.Navigate)
 set_position = rospy.ServiceProxy('set_position', srv.SetPosition)
 set_velocity = rospy.ServiceProxy('set_velocity', srv.SetVelocity)
 land = rospy.ServiceProxy('land', Trigger)
-head = Header(frame_id='map')
+TAKEOFF_FRAME = 'aruco_113'
 
 class Drone():
     def __init__(self, name):
@@ -39,7 +39,7 @@ class Drone():
         prev_t = 0
         start_t = rospy.get_time()
 
-        telem = get_telemetry(frame_id='map')
+        telem = get_telemetry(frame_id=self.frame_id)
         prev_x = telem.x
         prev_y = telem.y
 
@@ -61,7 +61,7 @@ class Drone():
             
             # loop til in tolerance of goal updating lookahead point as we go
             while not rospy.is_shutdown():
-                telem = get_telemetry(frame_id='map')
+                telem = get_telemetry(frame_id=self.frame_id)
                 dist = math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2)
 
                 # reached our goal
@@ -74,7 +74,7 @@ class Drone():
 
                 # call clover navigate with out projection points
                 navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
-                self.publish_proj(telem, proj_x, proj_y, abs_z)  #rviz display of projection points
+                self.publish_proj(telem, proj_x, proj_y, abs_z, frame_id=self.frame_id)  #rviz display of projection points
                 rospy.sleep(.01)
             
             # track necessary previous values for next trajectory point
@@ -92,13 +92,13 @@ class Drone():
         self.frame_id = None
 
 
-    def publish_proj(self, telem, x, y, z):
+    def publish_proj(self, telem, x, y, z, frame_id):
         yaw = math.atan2(y - telem.y, x - telem.x)
         orientation = Quaternion(*tf.transformations.quaternion_from_euler(0, 0, yaw))
 
 
         marker = Marker()
-        marker.header.frame_id = "map"
+        marker.header.frame_id = frame_id
         marker.type = 0
         marker.id = 0
         marker.scale.x = math.sqrt((x - telem.x)**2 + (y - telem.y)**2)
@@ -126,7 +126,7 @@ class Drone():
         # takeoff
         navigate(x=0, y=0, z=height.data, frame_id='body', auto_arm=True)
         while not rospy.is_shutdown():
-            telem = get_telemetry(frame_id='map')
+            telem = get_telemetry(frame_id=TAKEOFF_FRAME)
 
             # reached our goal
             if abs(telem.z - height.data) < 0.2:
@@ -134,9 +134,9 @@ class Drone():
             rospy.sleep(0.2)
                 
         # navigate to (0, 0)
-        navigate(x=0, y=0, z=height.data, frame_id='map')
+        navigate(x=0, y=0, z=height.data, frame_id=TAKEOFF_FRAME)
         while not rospy.is_shutdown():
-            telem = get_telemetry(frame_id='map')
+            telem = get_telemetry(frame_id=TAKEOFF_FRAME)
 
             # reached our goal
             if math.sqrt((telem.x)**2 + (telem.y)**2) < 0.2:

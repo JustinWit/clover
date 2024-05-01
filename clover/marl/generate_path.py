@@ -7,17 +7,17 @@ from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 import math
 
 rospy.init_node('send_path', anonymous=True)
-pub = rospy.Publisher('waypoints', Path, queue_size=10)
+pub = rospy.Publisher('waypoints', Path, queue_size=1)
 
-while pub.get_num_connections() < 2:
+while pub.get_num_connections() < 1:
     rospy.sleep(.1)
 
-radius = 2
+radius = .8
 num_points = 8
-completion_time = 30000
+completion_time = 20000
 time_step = completion_time / num_points
 
-msg_head = Header(stamp=rospy.Time.now(), frame_id="map")
+msg_head = Header(stamp=rospy.Time.now(), frame_id="aruco_113")
 poses = []
 
 
@@ -25,7 +25,7 @@ for i in range(num_points):
     theta = ((2 * math.pi) / num_points) * i
     x = (radius * math.cos(theta)) - radius
     y = radius * math.sin(theta)
-    z = 1
+    z = 2
 
 
     # generate message
