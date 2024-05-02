@@ -12,9 +12,9 @@ pub = rospy.Publisher('waypoints', Path, queue_size=1)
 while pub.get_num_connections() < 1:
     rospy.sleep(.1)
 
-radius = .8
-num_points = 8
-completion_time = 20000
+radius = 2
+num_points = 24
+completion_time = 45000
 time_step = completion_time / num_points
 
 msg_head = Header(stamp=rospy.Time.now(), frame_id="aruco_113")

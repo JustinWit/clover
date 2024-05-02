@@ -53,11 +53,8 @@ class Drone():
             abs_z = pt.pose.position.z
             
             # speed
-            dist = math.sqrt((prev_x - abs_x)**2 + (prev_y - abs_y)**2)
-            self.speed = dist / ((t - prev_t) / 1000)
-
-            # lookahead distances
-            proj_dist = dist / 2  # fix how far we are projecting that point
+            nav_dist = math.sqrt((prev_x - abs_x)**2 + (prev_y - abs_y)**2)
+            self.speed = nav_dist / ((t - prev_t) / 1000)
             
             # loop til in tolerance of goal updating lookahead point as we go
             while not rospy.is_shutdown():
@@ -69,8 +66,31 @@ class Drone():
                     break
                 # update proj_x and proj_y
                 else:
-                    proj_x = telem.x + ((dist + proj_dist) / dist) * (abs_x - telem.x)
-                    proj_y = telem.y + ((dist + proj_dist) / dist) * (abs_y - telem.y)                
+                    path_error = abs((abs_x - prev_x) * (telem.y - prev_y) - (telem.x - prev_x) * (abs_y - prev_y)) / nav_dist  # from wikipedia distance from point to line
+                    
+                    carrot_dist = max(dist * (dist / (dist + (path_error*2))), path_error)
+
+                    # set this to points on the line based on how far from the true navigation line we are
+                    # we have to ensure this point is infront of where we are navigating
+                    prev_pt_dist = math.sqrt((telem.x - prev_x)**2 + (telem.y - prev_y)**2)
+                    linept_dist = math.sqrt(prev_pt_dist**2 - path_error**2) + math.sqrt(carrot_dist**2 - path_error**2)
+
+                    cx = prev_x + (linept_dist / nav_dist) * (abs_x - prev_x)
+                    cy = prev_y + (linept_dist / nav_dist) * (abs_y - prev_y)
+                    if math.sqrt((cx - abs_x)**2 + (cy - abs_y)**2) <= self.tolerance:
+                        linept = (abs_x, abs_y)
+                    else:
+                        linept = cx, cy
+
+                    # projection distance
+                    proj_dist = self.speed * (dist / (dist + (path_error*2))) * .5
+
+                    # projection with similar triangles
+                    proj_x = telem.x + ((dist + proj_dist) / dist) * (linept[0] - telem.x)
+                    proj_y = telem.y + ((dist + proj_dist) / dist) * (linept[1] - telem.y)
+
+                    self.publish_proj(telem, proj_x, proj_y, abs_z)
+                
 
                 # call clover navigate with out projection points
                 navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
@@ -121,7 +141,7 @@ class Drone():
 
 
     def takeoff(self, height):
-        input('Press <ENTER> to take off')
+        input("Press <ENTER> for takeoff ")
         print("Takeoff.. wait for ready")
         # takeoff
         navigate(x=0, y=0, z=height.data, frame_id='body', auto_arm=True)
