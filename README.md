@@ -10,6 +10,9 @@ The main documentation is available at [https://clover.coex.tech](https://clover
 
 [__Support us on Kickstarter!__](https://www.kickstarter.com/projects/copterexpress/cloverdrone)
 
+## GaTech CORE Lab
+Functionality was added to support various use cases in the lab. README files in the clover directory and the clover/marl directory contain instructions and details.
+
 ## Video compilation
 
 [![Clover Drone Kit autonomy compilation](http://img.youtube.com/vi/u3omgsYC4Fk/hqdefault.jpg)](https://youtu.be/u3omgsYC4Fk)
