@@ -3,18 +3,22 @@ There are 3 different ways to send instructions to the drone.
 
 * grid_flight.py - Accepts grid coordinates to control drones movement over a grid.
 * trajectory.py - Takes in a constant stream of direction and velocity for continuous control over the drone.
-* waypoints.py - Takes in a set of points for the drone to navigate through.
+* waypoints - Takes in a set of points for the drone to navigate through.
 
+### Launch
 Launch any of the three files with rosrun. 
 ```
 rosrun clover {file_name.py}
 ```
 
-They all subscribe to the 'takeoff' topic which is a std_msgs/Int32 message, that is used to set the height for takeoff. I've just been publishing to this topic from the command line, but it could also be published to from another file.
+They all subscribe to the 'takeoff' topic which is a std_msgs/Int32 message, that is used to set the height for takeoff. I've just been publishing to this topic from the command line, but it could also be published to from another file. 
+
 ```
 $ rostopic pub takeoff std_msgs/Int32 1
 ```
-You'll be promted from the terminal running the main node to press enter to verfiy launch, then the drone will takeoff and hover at the specified height. In the grid_flight and waypoints files, after launch it will also navigate to (0, 0). The terminal will show 'ready' when the drone has finished the takeoff sequence.
+You'll be promted from the terminal running the main node to press enter to verfiy launch, then the drone will takeoff and hover at the specified height. Each file has a TAKEOFF_FRAME variable that can be set to change the frame the drone navigates to on takeoff. In the grid_flight and waypoints files, after launch it will also navigate to (0, 0) of the selected frame. The terminal will show 'ready' when the drone has finished the takeoff sequence.
+
+### Takeoff 
 
 Interpting the node with ctrl-c at anytime should land the drone immediately. If this fails you can directly call the land service from the terminal.
 ```
@@ -22,6 +26,14 @@ $ rosservice call land
 ```
 
 Once the main node is running you can run the file that will be publishing to the expected topic.
+
+### Environment
+The node running the main files should be ran on Pi, so you can ssh to the Pi and use rosrun from there. Then you can publish to topics from your machine with the correct ROS network set up, make sure to source ros noetic and your local workspace as well.
+
+```
+$ export ROS_IP=192.168.11.183 && export ROS_MASTER_URI=http://192.168.11.1:11311 && export ROS_HOSTNAME=192.168.11.183
+```
+
 
 ## grid_flight.py
 This node uses an [aruco map](https://clover.coex.tech/en/aruco_map.html) for position estimation. Maps are defined in the `aruco_pose/maps` directory. Currently the simulator is set up to use 2 markers for navigation: one outside of the corner of the (0, 0) position, and one outside the (n, n) position. The code navigates based on the marker in the (0, 0) position, but because Clover has access to the map, that marker doesn't need to be in view for the drone to be able to estimate it's position, it just needs to see one of the markers in the map. If you change the marker_ids being used you need to change the frame_id value in the set_position call, this happens twice, it should be near lines 26 and 42. 
@@ -48,17 +60,17 @@ There can be unexpected behaviors if the node recieves messages at too high of a
 `stream.py` can be used to publish the trajectory of a circle. `keycontrol.py` and `mousecontrol.py` can be used to send trajectories based on keyboard or mouse inputs. `mousecontrol.py` will need to be set up for your machine and you'll have to edit some permissions to allow access. 
 
 
-## waypoints.py
-This node takes in a path expressed as waypoints in the map. There are three approaches to how the drone should actually navigate these points, they are each on a seperate branch described below. 
+## waypoints
+This node takes in a path expressed as waypoints in the map. There are three approaches to how the drone should actually navigate these points, they are each on a seperate file described below. 
 
-### point2point
-This is the most basic approach. It treats each point as the final destination so it will stop and start at each point along the path. This gives the most accurate following of the path, but the navigation is jerky and it tends to fall behind on the times set for navigation because it stopping so much.
+### waypoints.py
+This is the most basic approach. It treats each point as the final destination so it will stop and start at each point along the path. This gives the most accurate following of the path, but the navigation can be jerky and it tends to fall behind on the times set for navigation because its stopping so much.
 
-### master
+### waypoints_proj.py
 This attempts to solve the stopping and starting issue by projecting the point it is navigating to futher than it needs to go. This means the drone doesn't slow down as it goes through the point sent as part of the path. This creates a more seamless transition navigating from point to point, but the error in following the path is increased. And since the drone won't update the point it is navigating to until it is within a set tolerance, if it misses the point it was supposed to navigate to it will circle around to go back through the point. This mostly happens when trying to navigate through the path quickly, or if there are sharp angles in the path.
 
-### smooth_nav
-To try and decrease how often the drone misses the point it was supposed to navigate through, this method changes where the drone is navigating based on how far from the path it is. So if the drone is far from the path, rather than still trying to navigate to the next point, it focuses on getting closer to the path first, then looking ahead to the point it needs to get to. 
+### waypoints_carrot.py
+To try and decrease how often the drone misses the point it was supposed to navigate through, this method changes where the drone is navigating based on how far from the path it is. So if the drone is far from the path, rather than simply ignoring the error and navigating to the next point, it focuses on getting closer to the path first, then looking ahead to the point it needs to get to. 
 
 ### Use Cases
 To send a path, the node subscribes to the 'waypoints' topic; the message type is [nav_msgs/Path](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Path.html). There is a header for the Path message, the [frame_id](https://clover.coex.tech/en/frames.html) should be set according to the frame_id to be used to navigate. Path contains a list of PoseStamped messages, each containing a header and a pose. The seq value for each header should be set to the time step in milliseconds for each position. The (x, y, z) position for each pose should be set according to the frame_id passed from the main header.
@@ -68,4 +80,3 @@ To send a path, the node subscribes to the 'waypoints' topic; the message type i
 ## Other notes
 The `clover.rviz` file is set up with tabs for viewing the camera and aruco feeds, and is also connected to some topics for visualization. 
 
-`clover/launch` has the launch files that start all of the drones nodes. The `clover.launch` file is ran on startup for both the simulator and the drone so you shouldn't need to directly call it. There are some setting in the launch for 
