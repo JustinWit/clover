@@ -30,4 +30,4 @@ Launch QGround and go to application settings, comm links. Change the type to TC
 
 ## Other Notes
 
-`clover/launch` has the launch files that start all of the drones nodes. The `clover.launch` file is ran on startup for both the simulator and the drone so you shouldn't need to directly call it. There are some setting in the launch for 
+`clover/launch` has the launch files that start all of the drones nodes. The `clover.launch` file is ran on startup for both the simulator and the drone so you shouldn't need to directly call it. 

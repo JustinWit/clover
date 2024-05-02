@@ -8,6 +8,7 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Range
 from std_msgs.msg import Int32
 import math
+TAKEOFF_FRAME = 'map'
 
 # Initialize Clover Services
 get_telemetry = rospy.ServiceProxy('get_telemetry', srv.GetTelemetry)

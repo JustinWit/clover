@@ -7,6 +7,7 @@ from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Int32
 import math
+TAKEOFF_FRAME = 'map'
 
 # Initialize Clover Services
 get_telemetry = rospy.ServiceProxy('get_telemetry', srv.GetTelemetry)
@@ -39,7 +40,7 @@ def takeoff(height):
     # takeoff
     navigate(x=0, y=0, z=height.data, frame_id='body', auto_arm=True)
     while not rospy.is_shutdown():
-        telem = get_telemetry(frame_id='map')
+        telem = get_telemetry(frame_id=TAKEOFF_FRAME)
 
         # reached our goal
         if abs(telem.z - height.data) < 0.2:
@@ -47,9 +48,9 @@ def takeoff(height):
         rospy.sleep(0.2)
     
     # navigate to (0, 0)
-        navigate(x=0, y=0, z=height.data, frame_id='map')
+        navigate(x=0, y=0, z=height.data, frame_id=TAKEOFF_FRAME)
         while not rospy.is_shutdown():
-            telem = get_telemetry(frame_id='map')
+            telem = get_telemetry(frame_id=TAKEOFF_FRAME)
 
             # reached our goal
             if math.sqrt((telem.x)**2 + (telem.y)**2) < 0.2:
