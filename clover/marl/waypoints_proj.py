@@ -20,7 +20,7 @@ navigate = rospy.ServiceProxy('navigate', srv.Navigate)
 set_position = rospy.ServiceProxy('set_position', srv.SetPosition)
 set_velocity = rospy.ServiceProxy('set_velocity', srv.SetVelocity)
 land = rospy.ServiceProxy('land', Trigger)
-TAKEOFF_FRAME = 'aruco_113'
+TAKEOFF_FRAME = 'map'
 
 class Drone():
     def __init__(self, name):
@@ -56,19 +56,25 @@ class Drone():
             dist = math.sqrt((prev_x - abs_x)**2 + (prev_y - abs_y)**2)
             self.speed = dist / ((t - prev_t) / 1000)
             
-            # navigate 
-            navigate(x=abs_x, y=abs_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
-
+            # lookahead distances
+            proj_dist = dist / 2  # fix how far we are projecting that point
+            
             # loop til in tolerance of goal updating lookahead point as we go
             while not rospy.is_shutdown():
-                telem = get_telemetry(frame_id="map")
-                dist_err = math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2)
-                # reached our goal
-                if dist_err < self.tolerance:
-                    break             
+                telem = get_telemetry(frame_id=self.frame_id)
+                dist = math.sqrt((telem.x - abs_x)**2 + (telem.y - abs_y)**2)
 
-                # call clover navigate with out projection points
-                self.publish_proj(telem, abs_x, abs_y, abs_z)  #rviz display of projection points
+                # reached our goal
+                if dist < self.tolerance:
+                    break
+                # update proj_x and proj_y
+                else:
+                    proj_x = telem.x + ((dist + proj_dist) / dist) * (abs_x - telem.x)
+                    proj_y = telem.y + ((dist + proj_dist) / dist) * (abs_y - telem.y)                
+
+                # call clover navigate with our projection points
+                navigate(x=proj_x, y=proj_y, z=abs_z, speed=self.speed, frame_id=self.frame_id)
+                self.publish_proj(telem, proj_x, proj_y, abs_z, frame_id=self.frame_id)  #rviz display of projection points
                 rospy.sleep(.01)
             
             # track necessary previous values for next trajectory point
